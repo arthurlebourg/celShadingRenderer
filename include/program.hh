@@ -1,19 +1,16 @@
 #pragma once
 
-#include "glad/glad.h"
-
-#include <GLFW/glfw3.h>
-#include <iostream>
-#include <string>
-
 #include "image.hh"
 #include "image_io.hh"
+#include "player.hh"
+#include "scene.hh"
 #include "utils.hh"
 
 class Program
 {
 public:
-    Program(std::string &vertex_shader_src, std::string &fragment_shader_src);
+    Program(std::string &vertex_shader_src, std::string &fragment_shader_src,
+            std::shared_ptr<Scene> scene);
 
     ~Program();
 
@@ -35,8 +32,23 @@ public:
 
     void update_position();
 
+    void mouse_motion_callback(int x, int y);
+
+    void update_physics(const float deltaTime);
+    void draw(glm::mat4 const &model_view_matrix,
+              glm::mat4 const &projection_matrix, bool clip);
+
+    void render(glm::mat4 const &model_view_matrix,
+                glm::mat4 const &projection_matrix);
+
+    void render_portals(glm::mat4 const &view_mat, glm::mat4 const &proj_mat,
+                        unsigned int recursion_level, bool clip);
+
 private:
     unsigned int shader_program_;
+    std::shared_ptr<Scene> scene_;
+
+    unsigned int max_recursion_level_ = 2;
 
     GLFWwindow *window_;
 

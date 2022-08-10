@@ -1,10 +1,11 @@
 #include "utils.hh"
 
-/*void print_err(const std::string func, const std::string file, const int line,
+void print_err(const std::string func, const std::string file, const int line,
                const GLenum errCode)
 {
     std::cerr << file << ":" << line << "(" << func << ") ";
-    std::cerr << gluErrorString(errCode) << std::endl;
+    // std::cerr << gluErrorString(errCode) << std::endl;
+    std::cerr << errCode << std::endl;
 }
 
 void test_opengl_error(std::string func, std::string file, int line)
@@ -28,7 +29,7 @@ void test_opengl_error(std::string func, std::string file, int line)
         std::cerr << "UNKONWN ERROR\n";
         break;
     }
-}*/
+}
 
 void load_obj(const char *filename, std::vector<glm::vec3> &vertices,
               std::vector<glm::vec2> &uv, std::vector<glm::vec3> &normals)
