@@ -1,48 +1,48 @@
 #pragma once
 
-#include <glad/glad.h>
-
+#include <GLFW/glfw3.h>
 #include <iostream>
 #include <string>
 
+#include "glad/glad.h"
 #include "image.hh"
 #include "image_io.hh"
 #include "utils.hh"
-#include <GLFW/glfw3.h>
 
-class Program {
+class Program
+{
 public:
-  Program();
+    Program(std::string vertex_shader_src, std::string fragment_shader_src);
 
-  ~Program();
+    ~Program();
 
-  static std::shared_ptr<Program>
-  make_program(std::string &vertex_shader_src,
-               std::string &fragment_shader_src);
+    char *get_log();
 
-  char *get_log();
+    bool is_ready();
 
-  bool is_ready();
+    void use();
 
-  void use();
+    void set_mat4_uniform(const char *name, glm::mat4 mat);
+    void set_mat4_uniform(const char *name, btScalar *mat);
+    void set_vec3_uniform(const char *name, glm::vec3 vec);
 
-  void set_mat4_uniform(const char *name, glm::mat4 mat);
-  void set_mat4_uniform(const char *name, btScalar *mat);
-  void set_vec3_uniform(const char *name, glm::vec3 vec);
+    GLFWwindow *get_window();
 
-  unsigned int get_shader();
+    unsigned int get_shader();
 
-  void update_position();
+    void update_position();
 
 private:
-  unsigned int shader_program_;
+    unsigned int shader_program_;
 
-  unsigned int vertex_shader_;
-  unsigned int fragment_shader_;
+    GLFWwindow *window_;
 
-  unsigned int VAO;
+    unsigned int vertex_shader_;
+    unsigned int fragment_shader_;
 
-  char log[512];
+    unsigned int VAO;
 
-  bool ready_;
+    char log[512];
+
+    bool ready_;
 };
