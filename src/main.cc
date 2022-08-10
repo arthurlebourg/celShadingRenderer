@@ -1,30 +1,19 @@
 #include "program.hh"
 
-void processInput(GLFWwindow *window)
-{
-    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-        glfwSetWindowShouldClose(window, true);
-}
-
 int main()
 {
-    std::shared_ptr<Program> p = std::make_shared<Program>("bite", "bite");
+    std::string shd_vertex = "shaders/vertex.shd";
+    std::string shd_fragment = "shaders/fragment.shd";
 
-    while (!glfwWindowShouldClose(p->get_window()))
+    std::shared_ptr<Program> p =
+        std::make_shared<Program>(shd_vertex, shd_fragment);
+
+    if (!p->is_ready())
     {
-        processInput(p->get_window());
-
-        // render
-        // ------
-        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
-
-        // glfw: swap buffers and poll IO events (keys pressed/released, mouse
-        // moved etc.)
-        // -------------------------------------------------------------------------------
-        glfwSwapBuffers(p->get_window());
-        glfwPollEvents();
+        std::cerr << "error building prog" << std::endl;
     }
+
+    p->display();
 
     glfwTerminate();
 

@@ -46,7 +46,7 @@ FixNamespaceComments: true
 ForEachMacros: ['ILIST_FOREACH', 'ILIST_FOREACH_ENTRY']
 IncludeBlocks: Regroup
 IncludeCategories:
-    - Regex: 'GL/glew.h'
+    - Regex: 'glad/glad.h'
       Priority: 0
     - Regex: '<.*>'
       Priority: 1

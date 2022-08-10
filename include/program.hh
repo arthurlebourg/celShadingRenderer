@@ -1,10 +1,11 @@
 #pragma once
 
+#include "glad/glad.h"
+
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include <string>
 
-#include "glad/glad.h"
 #include "image.hh"
 #include "image_io.hh"
 #include "utils.hh"
@@ -12,7 +13,7 @@
 class Program
 {
 public:
-    Program(std::string vertex_shader_src, std::string fragment_shader_src);
+    Program(std::string &vertex_shader_src, std::string &fragment_shader_src);
 
     ~Program();
 
@@ -21,6 +22,8 @@ public:
     bool is_ready();
 
     void use();
+
+    void display();
 
     void set_mat4_uniform(const char *name, glm::mat4 mat);
     void set_mat4_uniform(const char *name, btScalar *mat);

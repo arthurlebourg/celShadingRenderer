@@ -79,19 +79,33 @@ void keyboard_keydown(unsigned char key, int, int)
 
 void framebuffer_size_callback(GLFWwindow *, int width, int height)
 {
-    // make sure the viewport matches the new window dimensions; note that width
-    // and height will be significantly larger than specified on retina
-    // displays.
     glViewport(0, 0, width, height);
 }
 
-void display()
+void processInput(GLFWwindow *window)
 {
-    float currentFrame = 0; // glutGet(GLUT_ELAPSED_TIME);
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+        glfwSetWindowShouldClose(window, true);
+}
+
+void Program::display()
+{
+    while (!glfwWindowShouldClose(window_))
+    {
+        processInput(window_);
+
+        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        glfwSwapBuffers(window_);
+        glfwPollEvents();
+    }
+
+    /*float currentFrame = 0; // glutGet(GLUT_ELAPSED_TIME);
     deltaTime = currentFrame - lastFrame;
     lastFrame = currentFrame;
 
-    /*p->get_scene()->update_physics(deltaTime, p->get_player());
+    p->get_scene()->update_physics(deltaTime, p->get_player());
     p->get_player()->set_speed(key_states['a']);
     p->get_player()->move(key_states['z'] - key_states['s'],
                           key_states['d'] - key_states['q'], deltaTime);
@@ -102,14 +116,10 @@ void display()
     */
 }
 
-Program::Program(std::string vertex_shader_src, std::string fragment_shader_src)
+Program::Program(std::string &vertex_shader_src,
+                 std::string &fragment_shader_src)
 {
     ready_ = false;
-    vertex_shader_src = vertex_shader_src;
-    fragment_shader_src = fragment_shader_src;
-    vertex_shader_ = glCreateShader(GL_VERTEX_SHADER);
-    fragment_shader_ = glCreateShader(GL_FRAGMENT_SHADER);
-    shader_program_ = glCreateProgram();
 
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -136,6 +146,67 @@ Program::Program(std::string vertex_shader_src, std::string fragment_shader_src)
         std::cout << "Failed to initialize GLAD" << std::endl;
         return;
     }
+
+    vertex_shader_ = glCreateShader(GL_VERTEX_SHADER);
+    fragment_shader_ = glCreateShader(GL_FRAGMENT_SHADER);
+    shader_program_ = glCreateProgram();
+
+    int success;
+
+    std::string vertex_shader_content = read_file(vertex_shader_src);
+    std::string fragment_shader_content = read_file(fragment_shader_src);
+    char *vertex_shd_src =
+        (char *)std::malloc(vertex_shader_content.length() * sizeof(char));
+    char *fragment_shd_src =
+        (char *)std::malloc(fragment_shader_content.length() * sizeof(char));
+
+    vertex_shader_content.copy(vertex_shd_src, vertex_shader_content.length());
+    fragment_shader_content.copy(fragment_shd_src,
+                                 fragment_shader_content.length());
+
+    glShaderSource(vertex_shader_, 1, (const GLchar **)&(vertex_shd_src), NULL);
+    glCompileShader(vertex_shader_);
+    free(vertex_shd_src);
+
+    glGetShaderiv(vertex_shader_, GL_COMPILE_STATUS, &success);
+
+    if (!success)
+    {
+        glGetShaderInfoLog(vertex_shader_, 512, NULL, log);
+        std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n"
+                  << log << std::endl;
+        return;
+    }
+
+    glShaderSource(fragment_shader_, 1, (const GLchar **)&(fragment_shd_src),
+                   NULL);
+    glCompileShader(fragment_shader_);
+    free(fragment_shd_src);
+
+    glGetShaderiv(fragment_shader_, GL_COMPILE_STATUS, &success);
+
+    if (!success)
+    {
+        glGetShaderInfoLog(fragment_shader_, 512, NULL, log);
+        std::cout << "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n"
+                  << log << std::endl;
+        return;
+    }
+
+    glAttachShader(shader_program_, vertex_shader_);
+    glAttachShader(shader_program_, fragment_shader_);
+    glLinkProgram(shader_program_);
+
+    glGetProgramiv(shader_program_, GL_LINK_STATUS, &success);
+
+    if (!success)
+    {
+        glGetShaderInfoLog(p->shader_program_, 512, NULL, log);
+        std::cout << "ERROR::SHADER::LINKAGE_FAILED\n" << log << std::endl;
+        return;
+    }
+
+    glUseProgram(shader_program_);
 
     ready_ = true;
 }
@@ -190,12 +261,7 @@ GLFWwindow *Program::get_window()
     return window_;
 }
 
-/*std::shared_ptr<Scene> Program::get_scene()
-{
-    return scene_;
-}
-
-std::shared_ptr<Player> Program::get_player()
+/*std::shared_ptr<Player> Program::get_player()
 {
     return player_;
 }*/
