@@ -1,16 +1,20 @@
 #pragma once
 
+#include <fstream>
+
 #include "image.hh"
 #include "image_io.hh"
 #include "player.hh"
 #include "scene.hh"
 #include "utils.hh"
 
+GLFWwindow *init_window();
+
 class Program
 {
 public:
     Program(std::string &vertex_shader_src, std::string &fragment_shader_src,
-            std::shared_ptr<Scene> scene);
+            GLFWwindow *window, std::shared_ptr<Scene> scene);
 
     ~Program();
 
@@ -30,9 +34,9 @@ public:
 
     unsigned int get_shader();
 
-    void update_position();
+    std::shared_ptr<Scene> get_scene();
 
-    void mouse_motion_callback(int x, int y);
+    void update_position();
 
     void update_physics(const float deltaTime);
     void draw(glm::mat4 const &model_view_matrix,
@@ -61,3 +65,5 @@ private:
 
     bool ready_;
 };
+
+void set_prog_var(std::shared_ptr<Program> p);

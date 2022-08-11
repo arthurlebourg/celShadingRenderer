@@ -1,11 +1,7 @@
 #include "program.hh"
 
-#include <fstream>
-
-std::shared_ptr<Program> p;
-
-int old_pos_x = 0;
-int old_pos_y = 0;
+double old_pos_x = 0;
+double old_pos_y = 0;
 int win_w = 1024;
 int win_h = 1024;
 bool firstMouse = true;
@@ -14,7 +10,14 @@ bool key_states[256];
 float deltaTime = 0.0f; // Time between current frame and last frame
 float lastFrame = 0.0f; // Time of last frame
 
-void Program::mouse_motion_callback(int x, int y)
+std::shared_ptr<Program> prog;
+
+void set_prog_var(std::shared_ptr<Program> p)
+{
+    prog = p;
+}
+
+void mouse_motion_callback(GLFWwindow *, double x, double y)
 {
     x = x;
     y = y;
@@ -30,10 +33,11 @@ void Program::mouse_motion_callback(int x, int y)
     old_pos_x = x;
     old_pos_y = y;
 
-    float sensitivity = 0.05f;
+    float sensitivity = 10.0f;
     xoffset *= deltaTime * sensitivity;
     yoffset *= deltaTime * sensitivity;
 
+    auto scene_ = prog->get_scene();
     scene_->get_player()->add_yaw(xoffset);
     scene_->get_player()->add_pitch(yoffset);
 
@@ -48,7 +52,7 @@ void Program::mouse_motion_callback(int x, int y)
     scene_->get_player()->normalize_direction();
 
     // this is the main thing that keeps it from leaving the screen
-    if (x < 100 || x > win_w - 100)
+    if (x < 50 || x > win_w - 50)
     { // you can use values other than 100 for the screen edges if you like,
       // kind of seems to depend on your mouse sensitivity for what ends up
       // working best
@@ -56,30 +60,35 @@ void Program::mouse_motion_callback(int x, int y)
             win_w / 2; // centers the last known position, this way there isn't
                        // an odd jump with your cam as it resets
         old_pos_y = win_h / 2;
-        glfwSetCursorPos(window_, win_w / 2, win_h / 2);
+        glfwSetCursorPos(prog->get_window(), win_w / 2, win_h / 2);
         // glutWarpPointer(win_w / 2, win_h / 2); // centers the cursor
     }
-    else if (y < 100 || y > win_h - 100)
+    else if (y < 50 || y > win_h - 50)
     {
         old_pos_x = win_w / 2;
         old_pos_y = win_h / 2;
-        glfwSetCursorPos(window_, win_w / 2, win_h / 2);
+        glfwSetCursorPos(prog->get_window(), win_w / 2, win_h / 2);
         // glutWarpPointer(win_w / 2, win_h / 2);
     }
 }
 
-void keyboard_keyup(unsigned char key, int, int)
+void keyboard_callback(GLFWwindow *, int key, int, int action, int)
 {
-    key_states[key] = false;
-}
-
-void keyboard_keydown(unsigned char key, int, int)
-{
-    key_states[key] = true;
+    if (action == GLFW_PRESS)
+    {
+        key_states[key] = true;
+        std::cout << (char)key << std::endl;
+    }
+    else if (action == GLFW_RELEASE)
+    {
+        key_states[key] = false;
+    }
 }
 
 void framebuffer_size_callback(GLFWwindow *, int width, int height)
 {
+    win_w = width;
+    win_h = height;
     glViewport(0, 0, width, height);
 }
 
@@ -87,6 +96,197 @@ void processInput(GLFWwindow *window)
 {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
+}
+
+void Program::display()
+{
+    while (!glfwWindowShouldClose(window_))
+    {
+        float currentFrame = glfwGetTime(); // glutGet(GLUT_ELAPSED_TIME);
+        deltaTime = currentFrame - lastFrame;
+        lastFrame = currentFrame;
+
+        update_physics(deltaTime);
+        scene_->get_player()->set_speed(key_states['Q']);
+        scene_->get_player()->move(key_states['W'] - key_states['S'],
+                                   key_states['D'] - key_states['A'],
+                                   deltaTime);
+
+        draw(scene_->get_player()->get_model_view(),
+             scene_->get_player()->get_projection(), key_states['p']);
+
+        processInput(window_);
+
+        glfwPollEvents();
+    }
+}
+
+std::shared_ptr<Scene> Program::get_scene()
+{
+    return scene_;
+}
+
+GLFWwindow *init_window()
+{
+    glfwInit();
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+#ifdef __APPLE__
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+#endif
+
+    // glfw window creation
+    // --------------------
+    GLFWwindow *window =
+        glfwCreateWindow(win_w, win_h, "LearnOpenGL", NULL, NULL);
+    if (window == NULL)
+    {
+        std::cout << "Failed to create GLFW window" << std::endl;
+        glfwTerminate();
+        return window;
+    }
+    glfwMakeContextCurrent(window);
+    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
+    {
+        std::cout << "Failed to initialize GLAD" << std::endl;
+        return window;
+    }
+
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+
+    return window;
+}
+
+Program::Program(std::string &vertex_shader_src,
+                 std::string &fragment_shader_src, GLFWwindow *window,
+                 std::shared_ptr<Scene> scene)
+    : scene_(scene)
+    , window_(window)
+{
+    ready_ = false;
+
+    vertex_shader_ = glCreateShader(GL_VERTEX_SHADER);
+    fragment_shader_ = glCreateShader(GL_FRAGMENT_SHADER);
+    shader_program_ = glCreateProgram();
+
+    int success;
+
+    std::string vertex_shader_content = read_file(vertex_shader_src);
+    std::string fragment_shader_content = read_file(fragment_shader_src);
+    char *vertex_shd_src =
+        (char *)std::malloc(vertex_shader_content.length() * sizeof(char));
+    char *fragment_shd_src =
+        (char *)std::malloc(fragment_shader_content.length() * sizeof(char));
+
+    vertex_shader_content.copy(vertex_shd_src, vertex_shader_content.length());
+    fragment_shader_content.copy(fragment_shd_src,
+                                 fragment_shader_content.length());
+
+    glShaderSource(vertex_shader_, 1, (const GLchar **)&(vertex_shd_src), NULL);
+    glCompileShader(vertex_shader_);
+    free(vertex_shd_src);
+
+    glGetShaderiv(vertex_shader_, GL_COMPILE_STATUS, &success);
+
+    if (!success)
+    {
+        glGetShaderInfoLog(vertex_shader_, 512, NULL, log);
+        std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n"
+                  << log << std::endl;
+        return;
+    }
+
+    glShaderSource(fragment_shader_, 1, (const GLchar **)&(fragment_shd_src),
+                   NULL);
+    glCompileShader(fragment_shader_);
+    free(fragment_shd_src);
+
+    glGetShaderiv(fragment_shader_, GL_COMPILE_STATUS, &success);
+
+    if (!success)
+    {
+        glGetShaderInfoLog(fragment_shader_, 512, NULL, log);
+        std::cout << "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n"
+                  << log << std::endl;
+        return;
+    }
+
+    glAttachShader(shader_program_, vertex_shader_);
+    glAttachShader(shader_program_, fragment_shader_);
+    glLinkProgram(shader_program_);
+
+    glGetProgramiv(shader_program_, GL_LINK_STATUS, &success);
+
+    if (!success)
+    {
+        glGetShaderInfoLog(shader_program_, 512, NULL, log);
+        std::cout << "ERROR::SHADER::LINKAGE_FAILED\n" << log << std::endl;
+        return;
+    }
+
+    glUseProgram(shader_program_);
+    TEST_OPENGL_ERROR();
+
+    glfwSetCursorPosCallback(window, mouse_motion_callback);
+    glfwSetKeyCallback(window, keyboard_callback);
+
+    set_vec3_uniform("light_pos", scene->get_light());
+    TEST_OPENGL_ERROR();
+
+    ready_ = true;
+}
+
+Program::~Program()
+{
+    glDeleteShader(vertex_shader_);
+    glDeleteShader(fragment_shader_);
+    glfwTerminate();
+}
+
+char *Program::get_log()
+{
+    return log;
+}
+
+bool Program::is_ready()
+{
+    return ready_;
+}
+
+void Program::use()
+{
+    glUseProgram(shader_program_);
+}
+
+void Program::set_mat4_uniform(const char *name, glm::mat4 mat)
+{
+    GLint location = glGetUniformLocation(shader_program_, name);
+    glUniformMatrix4fv(location, 1, GL_FALSE, glm::value_ptr(mat));
+}
+
+void Program::set_mat4_uniform(const char *name, btScalar *mat)
+{
+    float res[16];
+    for (int i = 0; i < 16; i++)
+    {
+        res[i] = (float)mat[i];
+    }
+    GLint location = glGetUniformLocation(shader_program_, name);
+    glUniformMatrix4fv(location, 1, GL_FALSE, res);
+}
+
+void Program::set_vec3_uniform(const char *name, glm::vec3 vec)
+{
+    GLint location = glGetUniformLocation(shader_program_, name);
+    glUniform3fv(location, 1, glm::value_ptr(vec));
+}
+
+GLFWwindow *Program::get_window()
+{
+    return window_;
 }
 
 glm::mat4 portal_view(glm::mat4 orig_view, std::shared_ptr<Portal> src,
@@ -171,7 +371,7 @@ void Program::update_physics(const float deltaTime)
 {
     glm::mat4 prev_pos = scene_->get_player()->get_model_view();
 
-    scene_->get_dynamic_world()->stepSimulation(deltaTime * 0.1f / 60.0f, 1);
+    scene_->get_dynamic_world()->stepSimulation(deltaTime * 75.0f / 60.0f, 1);
     btTransform trans;
     trans.setIdentity();
     btRigidBody *player_body = scene_->get_player()->get_body();
@@ -497,177 +697,3 @@ void Program::render_portals(glm::mat4 const &view_mat,
     // Draw scene objects normally, only at recursionLevel
     render(view_mat, proj_mat);
 }
-
-void Program::display()
-{
-    while (!glfwWindowShouldClose(window_))
-    {
-        float currentFrame = glfwGetTime(); // glutGet(GLUT_ELAPSED_TIME);
-        deltaTime = currentFrame - lastFrame;
-        lastFrame = currentFrame;
-
-        update_physics(deltaTime);
-        scene_->get_player()->set_speed(key_states['a']);
-        scene_->get_player()->move(key_states['z'] - key_states['s'],
-                                   key_states['d'] - key_states['q'],
-                                   deltaTime);
-
-        draw(scene_->get_player()->get_model_view(),
-             scene_->get_player()->get_projection(), key_states['p']);
-
-        processInput(window_);
-
-        glfwPollEvents();
-    }
-}
-
-Program::Program(std::string &vertex_shader_src,
-                 std::string &fragment_shader_src, std::shared_ptr<Scene> scene)
-    : scene_(scene)
-{
-    ready_ = false;
-
-    glfwInit();
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
-#ifdef __APPLE__
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-#endif
-
-    // glfw window creation
-    // --------------------
-    window_ = glfwCreateWindow(win_w, win_h, "LearnOpenGL", NULL, NULL);
-    if (window_ == NULL)
-    {
-        std::cout << "Failed to create GLFW window" << std::endl;
-        glfwTerminate();
-        return;
-    }
-    glfwMakeContextCurrent(window_);
-    glfwSetFramebufferSizeCallback(window_, framebuffer_size_callback);
-    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
-    {
-        std::cout << "Failed to initialize GLAD" << std::endl;
-        return;
-    }
-
-    vertex_shader_ = glCreateShader(GL_VERTEX_SHADER);
-    fragment_shader_ = glCreateShader(GL_FRAGMENT_SHADER);
-    shader_program_ = glCreateProgram();
-
-    int success;
-
-    std::string vertex_shader_content = read_file(vertex_shader_src);
-    std::string fragment_shader_content = read_file(fragment_shader_src);
-    char *vertex_shd_src =
-        (char *)std::malloc(vertex_shader_content.length() * sizeof(char));
-    char *fragment_shd_src =
-        (char *)std::malloc(fragment_shader_content.length() * sizeof(char));
-
-    vertex_shader_content.copy(vertex_shd_src, vertex_shader_content.length());
-    fragment_shader_content.copy(fragment_shd_src,
-                                 fragment_shader_content.length());
-
-    glShaderSource(vertex_shader_, 1, (const GLchar **)&(vertex_shd_src), NULL);
-    glCompileShader(vertex_shader_);
-    free(vertex_shd_src);
-
-    glGetShaderiv(vertex_shader_, GL_COMPILE_STATUS, &success);
-
-    if (!success)
-    {
-        glGetShaderInfoLog(vertex_shader_, 512, NULL, log);
-        std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n"
-                  << log << std::endl;
-        return;
-    }
-
-    glShaderSource(fragment_shader_, 1, (const GLchar **)&(fragment_shd_src),
-                   NULL);
-    glCompileShader(fragment_shader_);
-    free(fragment_shd_src);
-
-    glGetShaderiv(fragment_shader_, GL_COMPILE_STATUS, &success);
-
-    if (!success)
-    {
-        glGetShaderInfoLog(fragment_shader_, 512, NULL, log);
-        std::cout << "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n"
-                  << log << std::endl;
-        return;
-    }
-
-    glAttachShader(shader_program_, vertex_shader_);
-    glAttachShader(shader_program_, fragment_shader_);
-    glLinkProgram(shader_program_);
-
-    glGetProgramiv(shader_program_, GL_LINK_STATUS, &success);
-
-    if (!success)
-    {
-        glGetShaderInfoLog(shader_program_, 512, NULL, log);
-        std::cout << "ERROR::SHADER::LINKAGE_FAILED\n" << log << std::endl;
-        return;
-    }
-
-    glUseProgram(shader_program_);
-
-    ready_ = true;
-}
-
-Program::~Program()
-{
-    glDeleteShader(vertex_shader_);
-    glDeleteShader(fragment_shader_);
-    glfwTerminate();
-}
-
-char *Program::get_log()
-{
-    return log;
-}
-
-bool Program::is_ready()
-{
-    return ready_;
-}
-
-void Program::use()
-{
-    glUseProgram(shader_program_);
-}
-
-void Program::set_mat4_uniform(const char *name, glm::mat4 mat)
-{
-    GLint location = glGetUniformLocation(shader_program_, name);
-    glUniformMatrix4fv(location, 1, GL_FALSE, glm::value_ptr(mat));
-}
-
-void Program::set_mat4_uniform(const char *name, btScalar *mat)
-{
-    float res[16];
-    for (int i = 0; i < 16; i++)
-    {
-        res[i] = (float)mat[i];
-    }
-    GLint location = glGetUniformLocation(shader_program_, name);
-    glUniformMatrix4fv(location, 1, GL_FALSE, res);
-}
-
-void Program::set_vec3_uniform(const char *name, glm::vec3 vec)
-{
-    GLint location = glGetUniformLocation(shader_program_, name);
-    glUniform3fv(location, 1, glm::value_ptr(vec));
-}
-
-GLFWwindow *Program::get_window()
-{
-    return window_;
-}
-
-/*std::shared_ptr<Player> Program::get_player()
-{
-    return player_;
-}*/

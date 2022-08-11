@@ -13,8 +13,11 @@ Object::Object(const std::string obj_file, const std::string texture,
     unsigned int norms; // VBO
     unsigned int uvs; // VBO
     glGenBuffers(1, &verts);
+    TEST_OPENGL_ERROR();
     glGenBuffers(1, &norms);
+    TEST_OPENGL_ERROR();
     glGenBuffers(1, &uvs);
+    TEST_OPENGL_ERROR();
     TEST_OPENGL_ERROR();
     glGenVertexArrays(1, &VAO_);
     TEST_OPENGL_ERROR();
