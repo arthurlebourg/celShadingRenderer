@@ -77,7 +77,6 @@ void keyboard_callback(GLFWwindow *, int key, int, int action, int)
     if (action == GLFW_PRESS)
     {
         key_states[key] = true;
-        std::cout << (char)key << std::endl;
     }
     else if (action == GLFW_RELEASE)
     {
@@ -161,21 +160,24 @@ GLFWwindow *init_window()
 }
 
 Program::Program(std::string &vertex_shader_src,
-                 std::string &fragment_shader_src, GLFWwindow *window,
+                 std::string &fragment_shader_src,
+                 std::string &fragment_single_color_src, GLFWwindow *window,
                  std::shared_ptr<Scene> scene)
     : scene_(scene)
     , window_(window)
     , render_shader_(Shader(vertex_shader_src, fragment_shader_src))
+    , single_color_(Shader(vertex_shader_src, fragment_single_color_src))
 {
     ready_ = false;
-
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LESS);
+    glEnable(GL_STENCIL_TEST);
+    glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
+    glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
     render_shader_.use();
 
     glfwSetCursorPosCallback(window, mouse_motion_callback);
     glfwSetKeyCallback(window, keyboard_callback);
-
-    render_shader_.set_vec3_uniform("light_pos", scene->get_light());
-    TEST_OPENGL_ERROR();
 
     ready_ = true;
 }
@@ -222,18 +224,31 @@ void Program::update_physics(const float deltaTime)
 void Program::render(glm::mat4 const &model_view_matrix,
                      glm::mat4 const &projection_matrix)
 {
-    render_shader_.use();
-
-    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+    glClearColor(0.8f, 0.8f, 0.8f, 1.0f);
     glClear(
         GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT
         | GL_STENCIL_BUFFER_BIT); // don't forget to clear the stencil buffer!
+
+    single_color_.use();
+    single_color_.set_vec3_uniform("light_pos", scene_->get_light());
+    single_color_.set_mat4_uniform("model_view_matrix", model_view_matrix);
+    single_color_.set_mat4_uniform("projection_matrix", projection_matrix);
+    single_color_.set_vec3_uniform("cam_pos",
+                                   model_view_matrix * glm::vec4(0, 0, 0, 1));
+
+    render_shader_.use();
+    render_shader_.set_vec3_uniform("light_pos", scene_->get_light());
     render_shader_.set_mat4_uniform("model_view_matrix", model_view_matrix);
     render_shader_.set_mat4_uniform("projection_matrix", projection_matrix);
     render_shader_.set_vec3_uniform("cam_pos",
                                     model_view_matrix * glm::vec4(0, 0, 0, 1));
+
     for (auto obj : scene_->get_objs())
     {
+        // first pass, render to stencil
+        render_shader_.use();
+        glStencilFunc(GL_ALWAYS, 1, 0xFF);
+        glStencilMask(0xFF);
         glBindVertexArray(obj->get_VAO());
 
         render_shader_.bind_texture(obj);
@@ -242,6 +257,28 @@ void Program::render(glm::mat4 const &model_view_matrix,
 
         glDrawArrays(GL_TRIANGLES, 0, obj->get_triangles_number());
         TEST_OPENGL_ERROR();
+
+        // second pass, render upscaled obj
+        glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
+        glStencilMask(0x00);
+        glDisable(GL_DEPTH_TEST);
+        single_color_.use();
+        float scale = 1.1f;
+        glBindVertexArray(obj->get_VAO());
+
+        single_color_.bind_texture(obj);
+
+        single_color_.set_mat4_uniform(
+            "transform",
+            glm::scale(obj->get_transform(), glm::vec3(scale, scale, scale)));
+
+        glDrawArrays(GL_TRIANGLES, 0, obj->get_triangles_number());
+        glBindVertexArray(0);
+        glStencilMask(0xFF);
+        glStencilFunc(GL_ALWAYS, 0, 0xFF);
+        glEnable(GL_DEPTH_TEST);
     }
+
     glfwSwapBuffers(window_);
+    glfwPollEvents();
 }

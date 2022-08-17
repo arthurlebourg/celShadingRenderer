@@ -4,6 +4,7 @@ int main()
 {
     std::string shd_vertex = "shaders/vertex.shd";
     std::string shd_fragment = "shaders/fragment.shd";
+    std::string shd_fragment_single_color = "shaders/fragment_single_color.shd";
 
     GLFWwindow *window = init_window();
 
@@ -19,8 +20,8 @@ int main()
     scene->add_object(std::make_shared<Object>(plane));
     scene->add_object(std::make_shared<Object>(amogus));
 
-    std::shared_ptr<Program> prog =
-        std::make_shared<Program>(shd_vertex, shd_fragment, window, scene);
+    std::shared_ptr<Program> prog = std::make_shared<Program>(
+        shd_vertex, shd_fragment, shd_fragment_single_color, window, scene);
 
     set_prog_var(prog);
     if (!prog->is_ready())
