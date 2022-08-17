@@ -161,12 +161,13 @@ GLFWwindow *init_window()
 
 Program::Program(std::string &vertex_shader_src,
                  std::string &fragment_shader_src,
+                 std::string &vertex_single_color_src,
                  std::string &fragment_single_color_src, GLFWwindow *window,
                  std::shared_ptr<Scene> scene)
     : scene_(scene)
     , window_(window)
     , render_shader_(Shader(vertex_shader_src, fragment_shader_src))
-    , single_color_(Shader(vertex_shader_src, fragment_single_color_src))
+    , single_color_(Shader(vertex_single_color_src, fragment_single_color_src))
 {
     ready_ = false;
     glEnable(GL_DEPTH_TEST);
@@ -246,6 +247,7 @@ void Program::render(glm::mat4 const &model_view_matrix,
     for (auto obj : scene_->get_objs())
     {
         // first pass, render to stencil
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         render_shader_.use();
         glStencilFunc(GL_ALWAYS, 1, 0xFF);
         glStencilMask(0xFF);
@@ -262,10 +264,10 @@ void Program::render(glm::mat4 const &model_view_matrix,
         glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
         glStencilMask(0x00);
         glDisable(GL_DEPTH_TEST);
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         single_color_.use();
         float scale = 1.1f;
         glBindVertexArray(obj->get_VAO());
-
         single_color_.bind_texture(obj);
 
         single_color_.set_mat4_uniform(

@@ -14,6 +14,7 @@ class Program
 {
 public:
     Program(std::string &vertex_shader_src, std::string &fragment_shader_src,
+            std::string &vertex_single_color_src,
             std::string &fragment_single_color_src, GLFWwindow *window,
             std::shared_ptr<Scene> scene);
 

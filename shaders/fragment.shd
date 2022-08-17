@@ -33,6 +33,6 @@ void main()
     vec3 specular = specularStrength * spec * light_color;
 
     vec3 res = (ambient + diffuse) * object_color;
-    //output_color = vec4(floor(res * layers) / layers, 1.0f) * texture(texture_sampler, uv_frag);
-    output_color = vec4(res, 1.0f) * texture(texture_sampler, uv_frag);
+    output_color = vec4(floor(res * layers) / layers, 1.0f) * texture(texture_sampler, uv_frag);
+    //output_color = vec4(res, 1.0f) * texture(texture_sampler, uv_frag);
 }
