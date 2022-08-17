@@ -17,7 +17,7 @@ public:
            const glm::vec3 position, const float obj_mass,
            btCollisionShape *colShape);
 
-    void bind_texture(const unsigned int shader_program);
+    unsigned int get_texture();
 
     unsigned int get_VAO();
 

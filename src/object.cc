@@ -231,13 +231,9 @@ unsigned int Object::get_triangles_number()
     return triangles_number_;
 }
 
-void Object::bind_texture(const unsigned int shader_program)
+unsigned int Object::get_texture()
 {
-    glBindTexture(GL_TEXTURE_2D, texture_id_);
-    unsigned tex_location =
-        glGetUniformLocation(shader_program, "texture_sampler");
-    glUniform1i(tex_location, 0);
-    TEST_OPENGL_ERROR();
+    return texture_id_;
 }
 
 btRigidBody *Object::get_body()

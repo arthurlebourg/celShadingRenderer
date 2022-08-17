@@ -36,16 +36,6 @@ void Scene::add_object(const std::shared_ptr<Object> obj)
     dynamicsWorld_->addRigidBody(obj->get_body());
 }
 
-void Scene::add_portals(const std::shared_ptr<Portal> portals)
-{
-    portals_.push_back(portals);
-}
-
-std::vector<std::shared_ptr<Portal>> Scene::get_portals()
-{
-    return portals_;
-}
-
 void Scene::add_player(std::shared_ptr<Player> player)
 {
     player_ = player;
